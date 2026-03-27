@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react"
 
-export default function MapPanel({ lat, lon, radius, data, activeLayer }) {
+export default function MapPanel({ lat, lon, radius, data, activeLayer, onMoveEnd }) {
     const containerRef = useRef(null)
     const mapRef = useRef(null)
     const layersRef = useRef([])
+    const onMoveEndRef = useRef(onMoveEnd)
+
+    useEffect(() => { onMoveEndRef.current = onMoveEnd }, [onMoveEnd])
 
     useEffect(() => {
         if (!containerRef.current || mapRef.current) return
@@ -12,6 +15,14 @@ export default function MapPanel({ lat, lon, radius, data, activeLayer }) {
         L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
             attribution: '© OSM © CARTO', maxZoom: 19
         }).addTo(map)
+
+        map.on('moveend', () => {
+            if (onMoveEndRef.current) {
+                const center = map.getCenter()
+                onMoveEndRef.current(center.lat.toFixed(4), center.lng.toFixed(4))
+            }
+        })
+        
         mapRef.current = map
     }, [])
 

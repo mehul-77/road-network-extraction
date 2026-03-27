@@ -391,7 +391,10 @@ export default function Home() {
                                     <Spinner label="Fetching road network from OpenStreetMap..." />
                                 </div>
                             )}
-                            <MapPanel lat={lat} lon={lon} radius={radius} data={osmData} activeLayer={activeLayer} />
+                            <MapPanel lat={lat} lon={lon} radius={radius} data={osmData} activeLayer={activeLayer} onMoveEnd={(la, lo) => {
+                                setLatInput(String(la));
+                                setLonInput(String(lo));
+                            }} />
 
                             {/* Floating status bar */}
                             {s && (
