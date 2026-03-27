@@ -40,3 +40,7 @@ Thumbs.db
 # Secrets / API keys (just in case)
 .env
 secrets.json
+
+# Node
+node_modules/
+.next/
