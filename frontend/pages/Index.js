@@ -360,7 +360,6 @@ export default function Home() {
                                 </Section>
 
                                 {cvLoading && <Spinner label="Running road extraction..." />}
-                                {cvData && <CVResult cv={cvData.cv} osm={cvData.osm} />}
 
                                 {!cvData && !cvLoading && (
                                     <div style={{ padding: "20px 0", textAlign: "center" }}>
@@ -422,13 +421,21 @@ export default function Home() {
                     )}
 
                     {tab === "satellite" && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 16 }}>
-                            <div style={{ fontSize: 64, opacity: .15 }}>🛰</div>
-                            <p style={{ color: "var(--muted)", fontFamily: "monospace", fontSize: 13, textAlign: "center", lineHeight: 1.8, maxWidth: 340 }}>
-                                Upload a satellite image from the sidebar to see road extraction results here.
-                                <br /><br />
-                                You can use any of the tiles downloaded with <code style={{ color: "var(--accent)", fontSize: 11 }}>dataset_downloader.py</code>
-                            </p>
+                        <div style={{ width: "100%", height: "100%", overflowY: "auto", padding: "40px" }}>
+                            {cvData ? (
+                                <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+                                    <CVResult cv={cvData.cv} osm={cvData.osm} />
+                                </div>
+                            ) : (
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 16 }}>
+                                    <div style={{ fontSize: 64, opacity: .15 }}>🛰</div>
+                                    <p style={{ color: "var(--muted)", fontFamily: "monospace", fontSize: 13, textAlign: "center", lineHeight: 1.8, maxWidth: 340 }}>
+                                        Upload a satellite image from the sidebar to see road extraction results here.
+                                        <br /><br />
+                                        You can use any of the tiles downloaded with <code style={{ color: "var(--accent)", fontSize: 11 }}>dataset_downloader.py</code>
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </main>
