@@ -1,0 +1,136 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #080810;
+    --bg2: #0d0d1a;
+    --bg3: #111120;
+    --border: rgba(255, 255, 255, 0.07);
+    --accent: #00d4aa;
+    --accent2: #5b8fff;
+    --text: #e0e0f0;
+    --muted: #555570;
+    --danger: #ea4335;
+    --warn: #f9ab00;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: .4;
+    }
+}
+
+.fadeUp {
+    animation: fadeUp .35s ease forwards;
+}
+
+input,
+button {
+    font-family: inherit;
+}
+
+button {
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+}
+
+button:hover:not(:disabled) {
+    opacity: .85;
+}
+
+button:active:not(:disabled) {
+    transform: scale(.98);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #222238;
+    border-radius: 3px;
+}
+
+/* Leaflet dark overrides */
+.leaflet-control-zoom a {
+    background: var(--bg2) !important;
+    color: var(--accent) !important;
+    border-color: var(--border) !important;
+}
+
+.leaflet-bar {
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+    background: var(--bg2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .5) !important;
+}
+
+.leaflet-popup-tip {
+    background: var(--bg2) !important;
+}
+
+.leaflet-attribution-flag {
+    display: none !important;
+}
+
+.leaflet-control-attribution {
+    background: rgba(8, 8, 16, .8) !important;
+    color: #444 !important;
+    font-size: 9px !important;
+}
