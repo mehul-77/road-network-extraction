@@ -108,24 +108,35 @@ ROAD_HIERARCHY = {
 }
 
 
-def fetch_osm_roads(bbox):
-    """Fetch roads from Overpass API."""
+def fetch_osm_roads(bbox, max_retries: int = 3):
+    """Fetch roads from Overpass API with retry + backoff for reliability."""
+    import time
+    import urllib.parse
     query = f"""
-    [out:json][timeout:30];
+    [out:json][timeout:40];
     (
       way["highway"]({bbox['lat_min']},{bbox['lon_min']},{bbox['lat_max']},{bbox['lon_max']});
     );
     out geom;
     """
-    import urllib.parse
     data = urllib.parse.urlencode({"data": query}).encode("utf-8")
     req = urllib.request.Request(
         OVERPASS_URL,
         data=data,
         headers={"User-Agent": "ITS-RoadExtraction/2.0"},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            last_err = e
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                time.sleep(wait)
+    raise last_err
 
 
 def road_length_km(geometry):
@@ -225,13 +236,17 @@ def build_analysis(osm_data, bbox, lat, lon, radius):
     density = round(total_length / area_km2, 1) if area_km2 > 0 else 0
     connectivity = round(int_count / (int_count + de_count) * 100, 1) if (int_count + de_count) > 0 else 0
 
-    # ITS readiness
-    if density > 15 and connectivity > 65:
-        its = {"label": "High", "desc": f"Dense, well-connected road network ({density} km/km²). Suitable for ITS deployment."}
-    elif density > 8 or connectivity > 40:
-        its = {"label": "Medium", "desc": f"Moderate road network ({density} km/km²). ITS deployment feasible with improvements."}
+    # ITS readiness — 4 tiers
+    if density > 15 and connectivity >= 65:
+        its = {"label": "High", "desc": f"Dense, well-connected road network ({density} km/km², {connectivity}% connectivity). Excellent for full ITS deployment."}
+    elif density > 8 and connectivity >= 50:
+        its = {"label": "High", "desc": f"Good road network ({density} km/km², {connectivity}% connectivity). Well suited for ITS deployment."}
+    elif connectivity >= 70:
+        its = {"label": "Medium", "desc": f"Highly connected but moderately sparse network ({density} km/km², {connectivity}% connectivity). ITS feasible; road expansion recommended."}
+    elif density > 5 or connectivity > 35:
+        its = {"label": "Medium", "desc": f"Moderate road network ({density} km/km², {connectivity}% connectivity). ITS deployment feasible with targeted improvements."}
     else:
-        its = {"label": "Low", "desc": f"Sparse road network ({density} km/km²). Significant infrastructure development needed for ITS."}
+        its = {"label": "Low", "desc": f"Sparse, poorly-connected road network ({density} km/km², {connectivity}% connectivity). Significant infrastructure development needed for ITS."}
 
     summary = {
         "total_roads": len(elements),
@@ -342,7 +357,7 @@ async def cv_detect(
     try:
         img = load_image(img_path)
         pre = preprocess(img)
-        res = detect_roads(pre)
+        res = detect_roads(pre, original_rgb=img)
         metrics = compute_metrics(img, res)
 
         def to_b64(arr: np.ndarray) -> str:
@@ -362,7 +377,7 @@ async def cv_detect(
                 "road_area_percent": metrics["road_area_percent"],
                 "num_segments": metrics["num_road_segments"],
                 "road_length_pixels": metrics["road_length_pixels"],
-                "road_density": metrics["road_density_per_px"],
+                "road_density": round(metrics["road_density_per_px"] * 100, 4),
             },
             "images": {
                 "original": to_b64(img_bgr),
@@ -554,8 +569,8 @@ async def change_detection(
         img_a = load_image(after_path)
         img_a = align_images(img_b, img_a)
 
-        res_b = detect_roads(preprocess(img_b))
-        res_a = detect_roads(preprocess(img_a))
+        res_b = detect_roads(preprocess(img_b), original_rgb=img_b)
+        res_a = detect_roads(preprocess(img_a), original_rgb=img_a)
 
         changes = detect_changes(res_b["binary_mask"], res_a["binary_mask"])
         metrics = change_metrics(changes, img_b.shape[0] * img_b.shape[1])
@@ -582,7 +597,7 @@ async def detect(file: UploadFile = File(...)):
     try:
         img = load_image(img_path)
         pre = preprocess(img)
-        res = detect_roads(pre)
+        res = detect_roads(pre, original_rgb=img)
         metrics = compute_metrics(img, res)
 
         def to_b64(arr: np.ndarray) -> str:

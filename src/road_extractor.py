@@ -45,13 +45,34 @@ def preprocess(img: np.ndarray) -> dict:
 # 3. ROAD DETECTION
 # ─────────────────────────────────────────────
 
-def detect_roads(preprocessed: dict) -> dict:
+def detect_roads(preprocessed: dict, original_rgb: np.ndarray = None) -> dict:
+    """
+    Improved road detection pipeline:
+    1. HSV colour masking  — keeps only asphalt/concrete tones (grey, low-saturation)
+    2. Canny edge detection + adaptive thresholding
+    3. Directional morphological path-opening — suppresses square building blobs,
+       keeps elongated linear road structures
+    4. Gap-filling closing + noise removal
+    """
     enhanced = preprocessed["enhanced"]
 
-    # --- Canny Edge Detection ---
+    # ── 1. HSV Colour Mask (asphalt = low saturation, mid-to-high value) ──────
+    if original_rgb is not None:
+        # Use the original RGB image for colour analysis
+        hsv = cv2.cvtColor(original_rgb, cv2.COLOR_RGB2HSV)
+    else:
+        # Fallback: reconstruct a fake HSV-compatible image from grayscale
+        gray_3ch = cv2.cvtColor(preprocessed["gray"], cv2.COLOR_GRAY2BGR)
+        hsv = cv2.cvtColor(gray_3ch, cv2.COLOR_BGR2HSV)
+
+    lower_gray = np.array([0,   0,   40])
+    upper_gray = np.array([179, 60, 220])   # low saturation → road-like surfaces
+    color_mask = cv2.inRange(hsv, lower_gray, upper_gray)
+
+    # ── 2. Edge Detection ─────────────────────────────────────────────────────
     edges = cv2.Canny(enhanced, threshold1=50, threshold2=150, apertureSize=3)
 
-    # --- Adaptive Thresholding ---
+    # ── 3. Adaptive Thresholding ──────────────────────────────────────────────
     adaptive_thresh = cv2.adaptiveThreshold(
         enhanced, 255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -59,21 +80,37 @@ def detect_roads(preprocessed: dict) -> dict:
         blockSize=11, C=2
     )
 
-    # --- Morphological operations to connect broken road segments ---
-    kernel_line = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    # Apply colour mask to both detections to suppress vegetation / coloured roofs
+    road_edges  = cv2.bitwise_and(edges,          edges,          mask=color_mask)
+    road_thresh = cv2.bitwise_and(adaptive_thresh, adaptive_thresh, mask=color_mask)
+
+    # Dilate edges to thicken thin road boundaries before combining
+    kernel_line  = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    dilated_edges = cv2.dilate(road_edges, kernel_line, iterations=2)
+
+    combined = cv2.bitwise_or(dilated_edges, road_thresh)
+
+    # ── 4. Directional Path Opening — favour long linear structures ───────────
+    # Multi-angle line kernels; the OR of all openings keeps elongated structures
+    DIRECTION_LEN = 15
+    directional_max = np.zeros_like(combined)
+    for angle in range(0, 180, 22):
+        k = np.zeros((DIRECTION_LEN, DIRECTION_LEN), dtype=np.uint8)
+        cx = cy = DIRECTION_LEN // 2
+        x1 = int(cx + (DIRECTION_LEN / 2) * np.cos(np.radians(angle)))
+        y1 = int(cy - (DIRECTION_LEN / 2) * np.sin(np.radians(angle)))
+        x2 = int(cx - (DIRECTION_LEN / 2) * np.cos(np.radians(angle)))
+        y2 = int(cy + (DIRECTION_LEN / 2) * np.sin(np.radians(angle)))
+        cv2.line(k, (x1, y1), (x2, y2), 1, 1)
+        opened = cv2.morphologyEx(combined, cv2.MORPH_OPEN, k)
+        directional_max = cv2.bitwise_or(directional_max, opened)
+
+    # ── 5. Gap Filling & Noise Removal ────────────────────────────────────────
     kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    closed = cv2.morphologyEx(directional_max, cv2.MORPH_CLOSE, kernel_close, iterations=2)
 
-    # Dilate edges to thicken roads
-    dilated_edges = cv2.dilate(edges, kernel_line, iterations=2)
-
-    # Combine edges + threshold
-    combined = cv2.bitwise_or(dilated_edges, adaptive_thresh)
-
-    # Close small gaps
-    closed = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, kernel_close, iterations=2)
-
-    # Remove small noise blobs
-    binary_mask = remove_small_components(closed, min_area=200)
+    # Increased min_area to 400 to remove more noise blobs (validated in testing)
+    binary_mask = remove_small_components(closed, min_area=400)
 
     # Skeletonize to get thin road centerlines
     skeleton = skeletonize(binary_mask)
@@ -227,7 +264,7 @@ def run_pipeline(image_path: str, output_dir: str = "output"):
     preprocessed = preprocess(img)
 
     print("🛣️  Detecting roads...")
-    results = detect_roads(preprocessed)
+    results = detect_roads(preprocessed, original_rgb=img)
 
     print("📊 Computing metrics...")
     metrics = compute_metrics(img, results)

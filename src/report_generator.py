@@ -419,7 +419,7 @@ def main():
     print(f"📡 Loading: {args.image_path}")
     img = load_image(args.image_path)
     pre = preprocess(img)
-    res = detect_roads(pre)
+    res = detect_roads(pre, original_rgb=img)
     metrics = compute_metrics(img, res)
 
     generate_report(

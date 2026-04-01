@@ -59,7 +59,7 @@ def align_images(img_before: np.ndarray, img_after: np.ndarray) -> np.ndarray:
 
     h, w = img_before.shape[:2]
     aligned = cv2.warpPerspective(img_after, H, (w, h))
-    return cv2.cvtColor(aligned, cv2.COLOR_BGR2RGB) if aligned.ndim == 3 else aligned
+    return aligned  # already in RGB (same colour space as input img_after)
 
 
 # ─────────────────────────────────────────────
@@ -196,8 +196,8 @@ def run_change_detection(before_path: str, after_path: str, output_dir: str = "o
     print("🛣️  Detecting roads in both images...")
     pre_b = preprocess(img_before)
     pre_a = preprocess(img_after_aligned)
-    res_b = detect_roads(pre_b)
-    res_a = detect_roads(pre_a)
+    res_b = detect_roads(pre_b, original_rgb=img_before)
+    res_a = detect_roads(pre_a, original_rgb=img_after_aligned)
 
     print("🔍 Computing changes...")
     changes = detect_changes(res_b["binary_mask"], res_a["binary_mask"])

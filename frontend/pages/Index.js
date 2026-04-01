@@ -69,7 +69,7 @@ function CVResult({ cv, osm }) {
                 <MetricCard label="Road Area" value={`${m.road_area_percent}%`} />
                 <MetricCard label="Segments" value={m.num_segments} />
                 <MetricCard label="Centerline" value={`${m.road_length_pixels}px`} sub="skeleton length" />
-                <MetricCard label="Density" value={m.road_density} sub="px/px ratio" />
+                <MetricCard label="Density" value={`${m.road_density}%`} sub="road/area ratio" />
             </div>
 
             {/* OSM Comparison */}
@@ -337,7 +337,7 @@ export default function Home() {
                                         <p style={{ color: satFile ? "var(--accent)" : "var(--muted)", fontFamily: "monospace", fontSize: 11 }}>
                                             {satFile ? `✓ ${satFile.name}` : "Drop satellite image or click to browse"}
                                         </p>
-                                        <p style={{ color: "#333", fontSize: 10, marginTop: 4, fontFamily: "monospace" }}>JPG / PNG from Google Earth or downloaded tiles</p>
+                                        <p style={{ color: "var(--muted)", fontSize: 10, marginTop: 4, fontFamily: "monospace" }}>JPG / PNG from Google Earth or downloaded tiles</p>
                                     </div>
 
                                     <p style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace", marginBottom: 6 }}>
@@ -391,8 +391,11 @@ export default function Home() {
                                 </div>
                             )}
                             <MapPanel lat={lat} lon={lon} radius={radius} data={osmData} activeLayer={activeLayer} onMoveEnd={(la, lo) => {
-                                setLatInput(String(la));
-                                setLonInput(String(lo));
+                                const laF = parseFloat(la), loF = parseFloat(lo);
+                                setLatInput(la);
+                                setLonInput(lo);
+                                setLat(laF);
+                                setLon(loF);
                             }} />
 
                             {/* Floating status bar */}
@@ -411,7 +414,7 @@ export default function Home() {
                                         ["Connect", `${s.connectivity_index}%`],
                                     ].map(([k, v]) => (
                                         <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                                            <span style={{ color: "#333", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>{k}</span>
+                                            <span style={{ color: "var(--muted)", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>{k}</span>
                                             <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 13 }}>{v}</span>
                                         </div>
                                     ))}
